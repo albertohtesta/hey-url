@@ -4,49 +4,83 @@ class UrlsController < ApplicationController
   def index
     # recent 10 short urls
     @url = Url.new
-    @urls = [
-      Url.new(short_url: 'ABCDE', original_url: 'http://google.com', created_at: Time.now),
-      Url.new(short_url: 'ABCDG', original_url: 'http://facebook.com', created_at: Time.now),
-      Url.new(short_url: 'ABCDF', original_url: 'http://yahoo.com', created_at: Time.now)
-    ]
+    @urls = Url.latest
+
   end
 
   def create
-    raise 'add some code'
-    # create a new URL record
+
+    @url = Url.new(url_params)
+    if @url.save
+      flash[:notice] = 'The URL was created!'
+      redirect_to root_path
+    else
+      @urls = Url.latest    
+      render :index
+    end
+
   end
 
   def show
-    @url = Url.new(short_url: 'ABCDE', original_url: 'http://google.com', created_at: Time.now)
-    # implement queries
-    @daily_clicks = [
-      ['1', 13],
-      ['2', 2],
-      ['3', 1],
-      ['4', 7],
-      ['5', 20],
-      ['6', 18],
-      ['7', 10],
-      ['8', 20],
-      ['9', 15],
-      ['10', 5]
-    ]
-    @browsers_clicks = [
-      ['IE', 13],
-      ['Firefox', 22],
-      ['Chrome', 17],
-      ['Safari', 7]
-    ]
-    @platform_clicks = [
-      ['Windows', 13],
-      ['macOS', 22],
-      ['Ubuntu', 17],
-      ['Other', 7]
-    ]
+
+    @url = Url.find_by(short_url: params[:url])
+    if @url
+      @daily_clicks = @url.daily_clicks
+      @browsers_clicks = @url.brw_clicks
+      @platform_clicks = @url.plat_clicks
+    else
+      render :file => 'public/404.html', :status => :not_found, :layout => false
+    end
+
   end
 
   def visit
-    # params[:short_url]
-    render plain: 'redirecting to url...'
+
+    @short_url = params[:short_url]
+    @url = Url.find_by(short_url: @short_url)
+    if(@url)
+      # check browser & platform
+      bro = chkbrw(bro)
+      plat = chkplat(plat)
+      # create click object and increment url.clicks_count
+      Click.create_click(@url, bro,plat)
+
+      redirect_to "#{@url.original_url}"
+    else
+      render :file => 'public/404.html', :status => :not_found, :layout => false
+    end
+
   end
+
+  private
+
+  def url_params
+    params.require(:url).permit(:original_url, :short_url)
+  end
+
+    def chkbrw(bro)
+    if browser.firefox?
+      bro ='firefox'
+    else
+      if browser.chrome?
+        bro='chrome'
+      else
+        bro='other'
+      end
+    end
+    return bro
+  end
+
+  def chkplat(plat)
+      if browser.platform.windows?
+      plat ='windows'
+    else
+      if browser.platform.linux?
+        plat='linux'
+      else
+        plat='other'
+      end
+    end
+  end
+
 end
